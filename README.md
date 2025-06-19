@@ -1,5 +1,8 @@
 # Walmart Retail Scraper
 
+> Version 1.0
+> Lots of improvements to do...
+
 A comprehensive, high-performance web scraping solution for Walmart product data, store information, and category analysis. Built with Scrapy and featuring advanced proxy management, browser automation, and anti-detection capabilities.
 
 ## 🚀 Features
@@ -37,12 +40,15 @@ A comprehensive, high-performance web scraping solution for Walmart product data
    source .venv/bin/activate
    ```
 
-3. **Install dependencies**:
+3. **Populate the .env file**
+   - Based on env.example, populate the values depending in your case
+
+4. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Install Chrome dependencies** (if using browser automation):
+5. **Install Chrome dependencies** (if using browser automation):
    - Ensure Chrome/Chromium is installed
    - ChromeDriver will be automatically managed by undetected-chromedriver
 
@@ -120,7 +126,7 @@ The system automatically prioritizes proxies based on:
 ### Proxy Sources
 ```bash
 # Collect new proxies
-scrapy crawl free_proxy_spider
+python main.py --fetch-proxies
 
 # Test existing proxies
 python scripts/validate_proxies_walmart.py
@@ -251,7 +257,6 @@ retailScraper/
 │   ├── apply_immediate_improvements.py
 │   └── test_improvements.py
 ├── data/                     # Output directory
-├── temp/                     # Browser sessions
 ├── middlewares.py           # Scrapy middleware
 ├── pipelines.py            # Data processing
 ├── scrapy_settings.py      # Basic configuration
@@ -275,38 +280,6 @@ The project includes significant enhancements for working with free proxies:
 - 🎭 **Advanced Anti-detection**: Fingerprint protection and human simulation
 - 📊 **Performance Monitoring**: Real-time statistics and optimization
 
-## 📈 Performance Expectations
-
-### Free Proxies
-- **Before improvements**: 5-10% success rate
-- **After improvements**: 20-40% success rate
-- **Recommended settings**: Low concurrency, high delays
-
-### Paid Residential Proxies
-- **Expected success rate**: 80-95%
-- **Recommended settings**: Medium-high concurrency, moderate delays
-
-### Data Collection Rates
-- **Store data**: 1,000-5,000 stores/hour (depending on proxy quality)
-- **Product data**: 500-2,000 products/hour
-- **Category mapping**: Complete hierarchy in 1-2 hours
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make improvements
-4. Test thoroughly
-5. Submit pull request
-
-## ⚠️ Legal Disclaimer
-
-This tool is for educational and research purposes only. Users are responsible for:
-- Complying with website terms of service
-- Respecting robots.txt files
-- Following applicable laws and regulations
-- Using appropriate rate limiting
-- Not overloading target servers
 ---
 
 **Note**: For production use with commercial applications, consider investing in high-quality residential proxy services for better reliability and success rates. 
