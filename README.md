@@ -101,13 +101,6 @@ MAX_PROXY_FAILURES = 3
 # Browser pool
 BROWSER_POOL_SIZE = 50
 ```
-
-### Enhanced Settings (`scrapy_settings_enhanced.py`)
-For better proxy performance with anti-detection features:
-```bash
-scrapy crawl <spider> --set SCRAPY_SETTINGS_MODULE=scrapy_settings_enhanced
-```
-
 ### Discord Notifications (Optional)
 1. Create `helpers/discord_config.py`:
    ```python
@@ -314,18 +307,6 @@ This tool is for educational and research purposes only. Users are responsible f
 - Following applicable laws and regulations
 - Using appropriate rate limiting
 - Not overloading target servers
-
-## 📝 License
-
-[Specify your license here]
-
-## 🆘 Support
-
-- Check the troubleshooting section above
-- Review logs for specific error messages
-- Test with single proxy using diagnostic tools
-- Ensure proper configuration for your use case
-
 ---
 
 **Note**: For production use with commercial applications, consider investing in high-quality residential proxy services for better reliability and success rates. 
