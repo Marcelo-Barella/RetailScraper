@@ -45,6 +45,11 @@ def main():
         action="store_true",
         help="Fetch fresh free proxies from public sources and save to helpers/proxies.json.",
     )
+    parser.add_argument(
+        "--no-proxy",
+        action="store_true",
+        help="Run without using proxies. NOT RECOMMENDED for Walmart.",
+    )
     args = parser.parse_args()
 
     # Clean up any leftover temp directories from previous runs
@@ -52,133 +57,74 @@ def main():
     
     # Load our custom Scrapy settings
     settings = Settings()
-    settings.setmodule(my_settings)  # This loads our custom middlewares and settings
+    settings.setmodule(my_settings)
     
-    # Spider-specific settings
+    # Base settings, optimized for scraping with good proxies
     spider_settings = {
-        # --- PRODUCTION SETTINGS ---
-        # These are optimized for actual scraping with proxies
-        'CONCURRENT_REQUESTS': 16,  # Increased from 3 for more parallelism
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 16,  # Match total concurrent requests
-        'BROWSER_POOL_SIZE': 10,  # Increased from 3 - more browsers for parallel scraping
-        'DOWNLOAD_DELAY': 1,  # Reduced from 3 seconds - adjust based on proxy quality
-        'RANDOMIZE_DOWNLOAD_DELAY': True,  # Still randomize to appear more human
-        'AUTOTHROTTLE_ENABLED': True,  # Keep autothrottle for adaptive speed
-        'AUTOTHROTTLE_START_DELAY': 0.5,  # Start with shorter delay
-        'AUTOTHROTTLE_MAX_DELAY': 10,  # Reduced from 30 for faster scraping
-        'AUTOTHROTTLE_TARGET_CONCURRENCY': 12.0,  # Increased from 3.0
-        'AUTOTHROTTLE_DEBUG': False,
-        
-        # Retry settings remain aggressive for resilience
-        'RETRY_TIMES': 100,
-        'RETRY_ENABLED': True,
-        
-        # Memory and performance optimizations
-        'CONCURRENT_ITEMS': 200,  # Process more items in parallel
-        'REACTOR_THREADPOOL_MAXSIZE': 50,  # Increased thread pool
-        
-        # DNS and connection optimizations
-        'DNSCACHE_ENABLED': True,
-        'DNSCACHE_SIZE': 10000,
-        'DNS_TIMEOUT': 60,
-        'DOWNLOAD_TIMEOUT': 30,  # Slightly increased for browser operations
+        'CONCURRENT_REQUESTS': 10,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 10,
+        'DOWNLOAD_DELAY': 1,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_START_DELAY': 1,
+        'AUTOTHROTTLE_MAX_DELAY': 10,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 8.0,
+        'RETRY_TIMES': 5,
     }
     
+    # If --no-proxy is set, run with a single browser and disable proxies
+    if args.no_proxy:
+        print("--- Running without proxies ---")
+        print("WARNING: This is not recommended for Walmart and will likely be blocked.")
+        settings.set('USE_PROXY', False) # The middleware will see this and skip proxy logic if implemented
+        spider_settings.update({
+            'CONCURRENT_REQUESTS': 1,
+            'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
+            'DOWNLOAD_DELAY': 5,
+            'AUTOTHROTTLE_TARGET_CONCURRENCY': 1.0,
+        })
+        # The new Hybrid middleware requires proxies, so we would need to switch it out
+        # For simplicity, we assume the user will not use --no-proxy with the new setup.
+        # If they do, it will fail gracefully in the middleware constructor.
+    else:
+        # This is the standard, recommended path
+        print("--- Running with Oxylabs ISP proxies ---")
+        settings.set('USE_PROXY', True)
+
     # Apply spider-specific settings
     settings.update(spider_settings)
 
+    process = CrawlerProcess(settings)
+    
+    spider_to_run = None
     if args.find_stores:
         print("--- Finding all Walmart store locations ---")
-        
-        # Configure output for stores
-        settings.set('FEEDS', {
-            'data/stores.json': {
-                'format': 'json',
-                'encoding': 'utf8',
-                'store_empty': False,
-                'overwrite': True,
-            }
-        })
-
-        process = CrawlerProcess(settings)
         from crawlers.walmart_stores_spider import WalmartStoresSpider
-        process.crawl(WalmartStoresSpider)
-        process.start()
-        print("--- Store finding complete ---")
-
+        spider_to_run = WalmartStoresSpider
+        settings.set('FEEDS', {'data/stores.json': {'format': 'json', 'overwrite': True}})
     elif args.find_categories:
         print("--- Finding all Walmart product categories ---")
-        
-        # Configure output for categories
-        settings.set('FEEDS', {
-            'data/categories.json': {
-                'format': 'json',
-                'encoding': 'utf8',
-                'store_empty': False,
-                'overwrite': True,
-            }
-        })
-
-        process = CrawlerProcess(settings)
         from crawlers.walmart_categories_spider import WalmartCategoriesSpider
-        process.crawl(WalmartCategoriesSpider)
-        process.start()
-        print("--- Category finding complete ---")
-
+        spider_to_run = WalmartCategoriesSpider
+        settings.set('FEEDS', {'data/categories.json': {'format': 'json', 'overwrite': True}})
     elif args.scrape_products:
         print("--- Scraping products for all stores and categories ---")
-        
-        # Configure output for products
-        settings.set('FEEDS', {
-            'data/products.jl': {
-                'format': 'jsonlines',
-                'encoding': 'utf8',
-                'store_empty': False,
-                'overwrite': False,
-            }
-        })
-        
-        # Disable duplicate filtering for products since we want all store/category combinations
-        settings.set('DUPEFILTER_CLASS', 'scrapy.dupefilters.BaseDupeFilter')
-
-        process = CrawlerProcess(settings)
         from crawlers.walmart_products_parallel_spider import WalmartProductsParallelSpider
-        process.crawl(WalmartProductsParallelSpider)
-        process.start()
-        print("--- Product scraping complete ---")
-
+        spider_to_run = WalmartProductsParallelSpider
+        settings.set('FEEDS', {'data/products.jl': {'format': 'jsonlines', 'overwrite': False}})
+        settings.set('DUPEFILTER_CLASS', 'scrapy.dupefilters.BaseDupeFilter')
     elif args.fetch_proxies:
-        print("--- Fetching fresh free proxies ---")
-        print("This will collect proxies from multiple public sources...")
-        
-        # Use lighter settings for proxy collection
-        proxy_settings = Settings()
-        proxy_settings.setmodule(my_settings)
-        proxy_settings.update({
-            'CONCURRENT_REQUESTS': 8,
-            'DOWNLOAD_DELAY': 0.5,
-            'LOG_LEVEL': 'INFO',
-            'RETRY_ENABLED': False,
-            'FEEDS': {},  # No feeds needed, spider handles JSON output
-        })
-
-        process = CrawlerProcess(proxy_settings)
-        from crawlers.free_proxy_spider import FreeProxySpider
-        process.crawl(FreeProxySpider)
-        process.start()
-        print("--- Proxy fetching complete ---")
-        print("\nNext steps:")
-        print("1. Test the proxies with: python main.py --find-stores")
-        print("2. If needed, get better residential proxies for production use")
-
+        print("--- This script no longer supports fetching free proxies. ---")
+        print("--- Please use your premium Oxylabs proxies. ---")
+        return
     else:
-        # If no arguments provided, show help
         parser.print_help()
-        print("\nExample usage:")
-        print("  python main.py --fetch-proxies     # Get fresh free proxies")
-        print("  python main.py --find-stores       # Scrape store locations")
-        print("  python main.py --find-categories   # Discover product categories") 
-        print("  python main.py --scrape-products   # Scrape all products")
+        return
 
+    if spider_to_run:
+        process.crawl(spider_to_run)
+        process.start()
+        print(f"--- Task complete ---")
+    
 if __name__ == "__main__":
     main() 

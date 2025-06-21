@@ -114,10 +114,15 @@ MAX_PROXY_FAILURES = 3
 # The unified middleware handles both proxy rotation and browser requests.
 # Priority 543 is before RetryMiddleware (550) to ensure we handle responses first
 DOWNLOADER_MIDDLEWARES = {
-   "enhanced_middleware.EnhancedProxyBrowserMiddleware": 543,
+   "hybrid_browser_middleware.HybridBrowserMiddleware": 543,
    # Ensure RetryMiddleware is enabled with default priority
    "scrapy.downloadermiddlewares.retry.RetryMiddleware": 550,
 }
+
+# Enable our custom header randomizer middleware
+# It will run after the default UserAgentMiddleware, so it can override the user agent
+# if needed, but it's better to let the browser middleware handle it.
+# HEADER_RANDOMIZER_ENABLED = True
 
 # --- MEMORY OPTIMIZATION ---
 # Limit the size of the request queue

@@ -1,6 +1,7 @@
 import os
 import re
 import scrapy
+import logging
 from scrapy import signals
 from urllib.parse import urljoin
 from helpers.helpers import extract_next_data, ensure_dir, DiscordProgressTracker
@@ -128,7 +129,7 @@ class WalmartStoresSpider(scrapy.Spider):
                 self.log(f"Main directory request failed, attempting again ({self.main_page_attempts}/{self.max_main_page_attempts})")
                 yield self._create_main_directory_request()
             else:
-                self.log("Exceeded maximum attempts for main directory page", level=scrapy.log.ERROR)
+                self.log("Exceeded maximum attempts for main directory page", level=logging.ERROR)
 
     def parse(self, response):
         """
@@ -145,7 +146,7 @@ class WalmartStoresSpider(scrapy.Spider):
         
         # Check if we've been blocked
         if "/blocked" in response.url or "robot or human" in response.text.lower():
-            self.log(f"Blocked on main directory page: {response.url}", level=scrapy.log.ERROR)
+            self.log(f"Blocked on main directory page: {response.url}", level=logging.ERROR)
             
             # Instead of raising an exception, create a new request
             if self.main_page_attempts < self.max_main_page_attempts:
@@ -153,7 +154,7 @@ class WalmartStoresSpider(scrapy.Spider):
                 yield self._create_main_directory_request()
                 return
             else:
-                self.log("Exceeded maximum attempts due to bot detection", level=scrapy.log.ERROR)
+                self.log("Exceeded maximum attempts due to bot detection", level=logging.ERROR)
                 return
         
         # Save the response for debugging
@@ -182,7 +183,7 @@ class WalmartStoresSpider(scrapy.Spider):
         state_links = list(set([link for link in state_links if link and '/store-directory/' in link and link != '/store-directory']))
         
         if not state_links:
-            self.log("No state links found! Checking for alternative page structure...", level=scrapy.log.ERROR)
+            self.log("No state links found! Checking for alternative page structure...", level=logging.ERROR)
             
             # Check if we're on a different page or need JavaScript
             if "__NEXT_DATA__" in response.text:
@@ -206,7 +207,7 @@ class WalmartStoresSpider(scrapy.Spider):
         
         # If still no links, try the sitemap approach
         if not state_links:
-            self.log("No state links found, trying sitemap...", level=scrapy.log.WARNING)
+            self.log("No state links found, trying sitemap...", level=logging.WARNING)
             yield scrapy.Request(
                 "https://www.walmart.com/sitemap_store_main.xml",
                 callback=self.parse_sitemap,
@@ -262,7 +263,7 @@ class WalmartStoresSpider(scrapy.Spider):
         
         # Check if we got blocked on sitemap too
         if "robot or human" in response.text.lower():
-            self.log("Bot detection on sitemap, retrying main directory", level=scrapy.log.WARNING)
+            self.log("Bot detection on sitemap, retrying main directory", level=logging.WARNING)
             if self.main_page_attempts < self.max_main_page_attempts:
                 yield self._create_main_directory_request()
             return
@@ -305,7 +306,7 @@ class WalmartStoresSpider(scrapy.Spider):
                 )
                 self.log("Discord progress update sent")
             else:
-                self.log("Discord tracker not available for progress update", level=scrapy.log.WARNING)
+                self.log("Discord tracker not available for progress update", level=logging.WARNING)
         
         # Log retry information
         retry_times = response.meta.get('retry_times', 0)
@@ -314,7 +315,7 @@ class WalmartStoresSpider(scrapy.Spider):
         
         # Check if we've been redirected to a blocked page
         if "/blocked" in response.url or "robot or human" in response.text.lower():
-            self.log(f"Blocked on state/city page: {response.url}", level=scrapy.log.ERROR)
+            self.log(f"Blocked on state/city page: {response.url}", level=logging.ERROR)
             self.failed_attempts += 1
             if self.discord_tracker:
                 self.discord_tracker.update_progress(
@@ -386,7 +387,7 @@ class WalmartStoresSpider(scrapy.Spider):
         
         # Check if we got a valid response
         if "Robot or human?" in html_content or "robot or human" in html_content.lower():
-            self.log(f"Got CAPTCHA page for store {store_id}, skipping", level=scrapy.log.WARNING)
+            self.log(f"Got CAPTCHA page for store {store_id}, skipping", level=logging.WARNING)
             # Don't yield anything, just skip this store
             return
         
@@ -401,7 +402,7 @@ class WalmartStoresSpider(scrapy.Spider):
                 .get("store")
             )
         else:
-            self.log(f"Could not find __NEXT_DATA__ on {href} despite using browser.", level=scrapy.log.WARNING)
+            self.log(f"Could not find __NEXT_DATA__ on {href} despite using browser.", level=logging.WARNING)
             
         # Create a more structured item with store ID and URL
         item = {
@@ -422,7 +423,7 @@ class WalmartStoresSpider(scrapy.Spider):
             })
             self.log(f"Successfully scraped store {store_id}: {item.get('name', 'Unknown')}")
         else:
-            self.log(f"No store data found for {store_id}", level=scrapy.log.WARNING)
+            self.log(f"No store data found for {store_id}", level=logging.WARNING)
         
         yield item
     
